@@ -27,7 +27,8 @@ app.use(
     saveUninitialized: false,
     cookie: {
       httpOnly: true,
-      secure: false,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
       maxAge: 30 * 24 * 60 * 60 * 1000,
     },
   }),
@@ -96,15 +97,16 @@ async function ensureAdminUser() {
 
 async function ensureAds() {
   const existingAds = await storage.getAllAds();
-  if (existingAds.length > 0) return;
+  if (existingAds.length >= 15) return;
 
-  const seedAds = [
+  const allSeedAds = [
+    // Basic tier (ids 1-5) — visible to all plans
     {
       title: "Falak Mobile — Unlimited 4G Load Offer",
       brand: "Falak Mobile",
       category: "Telecom",
       videoUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4",
-      thumbnailUrl: "/ads/falak-mobile.png",
+      thumbnailUrl: "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=400&q=80",
       duration: 15,
     },
     {
@@ -112,7 +114,7 @@ async function ensureAds() {
       brand: "Zaiqa Chips",
       category: "Snacks",
       videoUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4",
-      thumbnailUrl: "/ads/zaiqa-chips.png",
+      thumbnailUrl: "https://images.unsplash.com/photo-1566478989037-eec170784d0b?w=400&q=80",
       duration: 15,
     },
     {
@@ -120,7 +122,7 @@ async function ensureAds() {
       brand: "Bazaar Online",
       category: "E-commerce",
       videoUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
-      thumbnailUrl: "/ads/bazaar-online.png",
+      thumbnailUrl: "https://images.unsplash.com/photo-1472851294608-062f824d29cc?w=400&q=80",
       duration: 15,
     },
     {
@@ -128,7 +130,7 @@ async function ensureAds() {
       brand: "Sohni Textiles",
       category: "Fashion",
       videoUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4",
-      thumbnailUrl: "/ads/sohni-textiles.png",
+      thumbnailUrl: "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400&q=80",
       duration: 15,
     },
     {
@@ -136,23 +138,100 @@ async function ensureAds() {
       brand: "Speedy Riders",
       category: "Delivery",
       videoUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerMeltdowns.mp4",
-      thumbnailUrl: "/ads/speedy-riders.png",
+      thumbnailUrl: "https://images.unsplash.com/photo-1526367790999-0150786686a2?w=400&q=80",
       duration: 15,
     },
+    // Standard tier (ids 6-10) — visible to Standard & Premium
     {
       title: "Karim's Kitchen — Taste of Home",
       brand: "Karim's Kitchen",
       category: "Restaurant",
-      videoUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4",
-      thumbnailUrl: "/ads/karims-kitchen.png",
+      videoUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/SubaruOutbackOnStreetAndDirt.mp4",
+      thumbnailUrl: "https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=400&q=80",
       duration: 15,
+    },
+    {
+      title: "PakDrive — Find Your Dream Car",
+      brand: "PakDrive",
+      category: "Automotive",
+      videoUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/WeAreGoingOnBullrun.mp4",
+      thumbnailUrl: "https://images.unsplash.com/photo-1494976388531-d1058494cdd8?w=400&q=80",
+      duration: 15,
+    },
+    {
+      title: "HealthPlus — Your Wellness Partner",
+      brand: "HealthPlus",
+      category: "Health",
+      videoUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/WhatCarCanYouGetForAGrand.mp4",
+      thumbnailUrl: "https://images.unsplash.com/photo-1505576399279-565b52d4ac71?w=400&q=80",
+      duration: 15,
+    },
+    {
+      title: "BrightStar Academy — Learn & Grow",
+      brand: "BrightStar Academy",
+      category: "Education",
+      videoUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/VolkswagenGTIReview.mp4",
+      thumbnailUrl: "https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=400&q=80",
+      duration: 15,
+    },
+    {
+      title: "GlowUp Cosmetics — Shine Every Day",
+      brand: "GlowUp Cosmetics",
+      category: "Beauty",
+      videoUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4",
+      thumbnailUrl: "https://images.unsplash.com/photo-1596462502278-27bfdc403348?w=400&q=80",
+      duration: 15,
+    },
+    // Premium tier (ids 11-15) — visible to Premium only
+    {
+      title: "SkyTravel — Fly Anywhere for Less",
+      brand: "SkyTravel",
+      category: "Travel",
+      videoUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4",
+      thumbnailUrl: "https://images.unsplash.com/photo-1436491865332-7a61a109cc05?w=400&q=80",
+      duration: 20,
+    },
+    {
+      title: "CryptoEarn PK — Invest Smart",
+      brand: "CryptoEarn PK",
+      category: "Finance",
+      videoUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4",
+      thumbnailUrl: "https://images.unsplash.com/photo-1605792657660-596af9009e82?w=400&q=80",
+      duration: 20,
+    },
+    {
+      title: "LuxeHome — Furniture That Lasts",
+      brand: "LuxeHome",
+      category: "Home Decor",
+      videoUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
+      thumbnailUrl: "https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=400&q=80",
+      duration: 20,
+    },
+    {
+      title: "ActiveGear PK — Sports Equipment Sale",
+      brand: "ActiveGear PK",
+      category: "Sports",
+      videoUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4",
+      thumbnailUrl: "https://images.unsplash.com/photo-1517649763962-0c623066013b?w=400&q=80",
+      duration: 20,
+    },
+    {
+      title: "TechZone — Gadgets at Best Price",
+      brand: "TechZone",
+      category: "Technology",
+      videoUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4",
+      thumbnailUrl: "https://images.unsplash.com/photo-1519389950473-47ba0277781c?w=400&q=80",
+      duration: 20,
     },
   ];
 
-  for (const ad of seedAds) {
+  // Only seed ads that don't already exist (by title)
+  const existingTitles = new Set(existingAds.map((a) => a.title));
+  const toSeed = allSeedAds.filter((a) => !existingTitles.has(a.title));
+  for (const ad of toSeed) {
     await storage.createAd({ ...ad, active: true });
   }
-  log(`Seeded ${seedAds.length} sample ads`);
+  if (toSeed.length > 0) log(`Seeded ${toSeed.length} additional ads (total target: 15)`);
 }
 
 (async () => {

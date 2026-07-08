@@ -113,6 +113,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       req.session.userId = user.id;
       req.session.isAdmin = false;
+      await new Promise<void>((resolve, reject) =>
+        req.session.save((err) => (err ? reject(err) : resolve()))
+      );
 
       res.status(201).json({ user: toSafeUser(user) });
     } catch (err) {
@@ -143,6 +146,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       req.session.userId = user.id;
       req.session.isAdmin = user.isAdmin;
+      await new Promise<void>((resolve, reject) =>
+        req.session.save((err) => (err ? reject(err) : resolve()))
+      );
 
       res.json({ user: toSafeUser(user) });
     } catch (err) {
@@ -168,9 +174,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json({ user: toSafeUser(user) });
   });
 
-  app.get("/api/ads", requireAuth, async (_req, res) => {
+  app.get("/api/ads", requireAuth, async (req, res) => {
+    const user = await storage.getUserById(req.session.userId!);
+    if (!user) return res.status(401).json({ message: "Not authenticated" });
     const activeAds = await storage.getActiveAds();
-    res.json({ ads: activeAds });
+    // Sort by id ascending so the plan tiers are deterministic
+    const sorted = [...activeAds].sort((a, b) => a.id - b.id);
+    const planLimit: Record<string, number> = { basic: 5, standard: 10, premium: 15 };
+    const limit = planLimit[user.pkg] ?? sorted.length;
+    res.json({ ads: sorted.slice(0, limit) });
   });
 
   app.post("/api/ads/watch", requireAuth, async (req, res) => {
@@ -258,6 +270,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
     req.session.userId = user.id;
     req.session.isAdmin = true;
+    await new Promise<void>((resolve, reject) =>
+      req.session.save((err) => (err ? reject(err) : resolve()))
+    );
     res.json({ user: toSafeUser(user) });
   });
 
