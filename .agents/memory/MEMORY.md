@@ -1,0 +1,2 @@
+- [Express 5 wildcard routes](express5-wildcard-routes.md) — bare `"*"` path strings throw at startup; use `"/*splat"` instead.
+- [External Neon DB alongside Replit DB](external-db-reserved-names.md) — `DATABASE_URL` is runtime-reserved even when using an external Postgres; store the external connection string under a different secret name.
