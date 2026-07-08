@@ -63,15 +63,18 @@ app.use((req, res, next) => {
   next();
 });
 
+const ADMIN_PHONE = "admin";
+const ADMIN_PASSWORD = "Clear@Clear";
+
 async function ensureAdminUser() {
-  const existing = await storage.getUserByPhone("admin");
+  const existing = await storage.getUserByPhone(ADMIN_PHONE);
   if (!existing) {
-    const hashed = await bcrypt.hash("jazzbazar786", 10);
+    const hashed = await bcrypt.hash(ADMIN_PASSWORD, 10);
     const { db } = await import("./db");
     const { users } = await import("@shared/schema");
     await db.insert(users).values({
       name: "Administrator",
-      phone: "admin",
+      phone: ADMIN_PHONE,
       password: hashed,
       pkg: "premium",
       paymentMethod: "jazzcash",
@@ -79,12 +82,82 @@ async function ensureAdminUser() {
       status: "approved",
       isAdmin: true,
     });
-    log("Seeded default admin account (phone: admin / password: jazzbazar786)");
+    log(`Seeded default admin account (phone: ${ADMIN_PHONE} / password: ${ADMIN_PASSWORD})`);
+  } else {
+    // Migrate legacy default password to the new default so existing installs stay in sync.
+    const stillLegacy = await bcrypt.compare("jazzbazar786", existing.password);
+    if (stillLegacy) {
+      const hashed = await bcrypt.hash(ADMIN_PASSWORD, 10);
+      await storage.adminUpdateUser(existing.id, { password: hashed } as any);
+      log(`Updated admin password to new default (phone: ${ADMIN_PHONE} / password: ${ADMIN_PASSWORD})`);
+    }
   }
+}
+
+async function ensureAds() {
+  const existingAds = await storage.getAllAds();
+  if (existingAds.length > 0) return;
+
+  const seedAds = [
+    {
+      title: "Falak Mobile — Unlimited 4G Load Offer",
+      brand: "Falak Mobile",
+      category: "Telecom",
+      videoUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4",
+      thumbnailUrl: "/ads/falak-mobile.png",
+      duration: 15,
+    },
+    {
+      title: "Zaiqa Chips — Crunch Into Flavor",
+      brand: "Zaiqa Chips",
+      category: "Snacks",
+      videoUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4",
+      thumbnailUrl: "/ads/zaiqa-chips.png",
+      duration: 15,
+    },
+    {
+      title: "Bazaar Online — Shop Everything, Fast",
+      brand: "Bazaar Online",
+      category: "E-commerce",
+      videoUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
+      thumbnailUrl: "/ads/bazaar-online.png",
+      duration: 15,
+    },
+    {
+      title: "Sohni Textiles — New Winter Collection",
+      brand: "Sohni Textiles",
+      category: "Fashion",
+      videoUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4",
+      thumbnailUrl: "/ads/sohni-textiles.png",
+      duration: 15,
+    },
+    {
+      title: "Speedy Riders — Delivered in 30 Minutes",
+      brand: "Speedy Riders",
+      category: "Delivery",
+      videoUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerMeltdowns.mp4",
+      thumbnailUrl: "/ads/speedy-riders.png",
+      duration: 15,
+    },
+    {
+      title: "Karim's Kitchen — Taste of Home",
+      brand: "Karim's Kitchen",
+      category: "Restaurant",
+      videoUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4",
+      thumbnailUrl: "/ads/karims-kitchen.png",
+      duration: 15,
+    },
+  ];
+
+  for (const ad of seedAds) {
+    await storage.createAd({ ...ad, active: true });
+  }
+  log(`Seeded ${seedAds.length} sample ads`);
 }
 
 (async () => {
   await ensureAdminUser();
+  await ensureAds();
 
   const server = await registerRoutes(app);
 

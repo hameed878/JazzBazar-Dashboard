@@ -1,27 +1,40 @@
 import { useEffect, useState } from "react";
 import { apiRequest } from "@/lib/api";
-import { CheckCircle, XCircle, ShieldCheck } from "lucide-react";
+import { ShieldCheck, LayoutGrid, ImageIcon, Wallet, Users as UsersIcon, Settings as SettingsIcon, Video, LogOut, Menu, X } from "lucide-react";
+import type { AdminUser, AdminWithdrawal, AdminAd, AppConfig, Stats } from "./admin/types";
+import Overview from "./admin/Overview";
+import Deposits from "./admin/Deposits";
+import Withdrawals from "./admin/Withdrawals";
+import Users from "./admin/Users";
+import Settings from "./admin/Settings";
+import Ads from "./admin/Ads";
 
-interface AdminUser {
-  id: number;
-  name: string;
-  phone: string;
-  pkg: string;
-  paymentMethod: string;
-  transactionImage: string;
-  status: string;
-  balance: string;
-  isAdmin: boolean;
-}
+type Tab = "overview" | "deposits" | "withdrawals" | "users" | "ads" | "settings";
+
+const TABS: { key: Tab; label: string; icon: JSX.Element }[] = [
+  { key: "overview", label: "Overview", icon: <LayoutGrid size={18} /> },
+  { key: "deposits", label: "Deposits", icon: <ImageIcon size={18} /> },
+  { key: "withdrawals", label: "Withdrawals", icon: <Wallet size={18} /> },
+  { key: "users", label: "Users", icon: <UsersIcon size={18} /> },
+  { key: "ads", label: "Ads", icon: <Video size={18} /> },
+  { key: "settings", label: "Settings", icon: <SettingsIcon size={18} /> },
+];
 
 export default function Admin() {
   const [loggedIn, setLoggedIn] = useState(false);
+  const [checkingSession, setCheckingSession] = useState(true);
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [tab, setTab] = useState<Tab>("overview");
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
   const [users, setUsers] = useState<AdminUser[]>([]);
-  const [filter, setFilter] = useState<"pending" | "approved" | "rejected" | "all">("pending");
+  const [withdrawals, setWithdrawals] = useState<AdminWithdrawal[]>([]);
+  const [ads, setAds] = useState<AdminAd[]>([]);
+  const [config, setConfig] = useState<AppConfig | null>(null);
+  const [stats, setStats] = useState<Stats | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -29,15 +42,28 @@ export default function Admin() {
         const data = await apiRequest("/api/auth/me");
         if (data.user.isAdmin) {
           setLoggedIn(true);
-          loadUsers();
+          await loadAll();
         }
-      } catch {}
+      } catch {
+      } finally {
+        setCheckingSession(false);
+      }
     })();
   }, []);
 
-  async function loadUsers() {
-    const data = await apiRequest("/api/admin/users");
-    setUsers(data.users);
+  async function loadAll() {
+    const [statsData, usersData, withdrawalsData, adsData, configData] = await Promise.all([
+      apiRequest("/api/admin/stats"),
+      apiRequest("/api/admin/users"),
+      apiRequest("/api/admin/withdrawals"),
+      apiRequest("/api/admin/ads"),
+      apiRequest("/api/admin/settings"),
+    ]);
+    setStats(statsData);
+    setUsers(usersData.users);
+    setWithdrawals(withdrawalsData.withdrawals);
+    setAds(adsData.ads);
+    setConfig(configData);
   }
 
   async function handleLogin(e: React.FormEvent) {
@@ -50,7 +76,7 @@ export default function Admin() {
         body: JSON.stringify({ phone, password }),
       });
       setLoggedIn(true);
-      await loadUsers();
+      await loadAll();
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -58,17 +84,16 @@ export default function Admin() {
     }
   }
 
-  async function approve(id: number) {
-    await apiRequest(`/api/admin/users/${id}/approve`, { method: "POST" });
-    loadUsers();
+  async function handleLogout() {
+    await apiRequest("/api/auth/logout", { method: "POST" });
+    setLoggedIn(false);
+    setPhone("");
+    setPassword("");
   }
 
-  async function reject(id: number) {
-    await apiRequest(`/api/admin/users/${id}/reject`, { method: "POST" });
-    loadUsers();
+  if (checkingSession) {
+    return <div className="min-h-screen flex items-center justify-center bg-[#121212]" />;
   }
-
-  const filteredUsers = users.filter((u) => (filter === "all" ? true : u.status === filter) && !u.isAdmin);
 
   if (!loggedIn) {
     return (
@@ -92,10 +117,7 @@ export default function Admin() {
             className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-jb-red"
           />
           {error && <p className="text-jb-red text-sm font-medium">{error}</p>}
-          <button
-            disabled={loading}
-            className="bg-jb-red text-white font-bold rounded-xl py-3 disabled:opacity-60"
-          >
+          <button disabled={loading} className="bg-jb-red text-white font-bold rounded-xl py-3 disabled:opacity-60">
             {loading ? "Logging in..." : "Login"}
           </button>
         </form>
@@ -104,77 +126,68 @@ export default function Admin() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 p-6">
-      <div className="max-w-3xl mx-auto">
-        <h1 className="text-2xl font-extrabold text-gray-800 mb-4">JazzBazar Admin Dashboard</h1>
-
-        <div className="flex gap-2 mb-4">
-          {(["pending", "approved", "rejected", "all"] as const).map((f) => (
+    <div className="min-h-screen bg-gray-100 flex">
+      <aside
+        className={`fixed lg:static inset-y-0 left-0 z-40 w-64 bg-[#121212] text-white flex flex-col transition-transform duration-200 ${
+          sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
+        }`}
+      >
+        <div className="flex items-center justify-between px-5 py-5 border-b border-white/10">
+          <div className="flex items-center gap-2">
+            <ShieldCheck className="text-jb-red" size={22} />
+            <p className="font-extrabold text-lg">JazzBazar</p>
+          </div>
+          <button className="lg:hidden text-white/70" onClick={() => setSidebarOpen(false)}>
+            <X size={20} />
+          </button>
+        </div>
+        <nav className="flex-1 px-3 py-4 flex flex-col gap-1">
+          {TABS.map((t) => (
             <button
-              key={f}
-              onClick={() => setFilter(f)}
-              className={`px-4 py-2 rounded-full text-sm font-semibold capitalize ${
-                filter === f ? "bg-jb-red text-white" : "bg-white text-gray-600"
+              key={t.key}
+              onClick={() => {
+                setTab(t.key);
+                setSidebarOpen(false);
+              }}
+              className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-colors ${
+                tab === t.key ? "bg-jb-red text-white" : "text-white/60 hover:bg-white/5 hover:text-white"
               }`}
             >
-              {f}
+              {t.icon}
+              {t.label}
             </button>
           ))}
+        </nav>
+        <button
+          onClick={handleLogout}
+          className="flex items-center gap-3 px-4 py-3 mx-3 mb-4 rounded-xl text-sm font-semibold text-white/60 hover:bg-white/5 hover:text-white"
+        >
+          <LogOut size={18} /> Logout
+        </button>
+      </aside>
+
+      {sidebarOpen && (
+        <div className="fixed inset-0 bg-black/40 z-30 lg:hidden" onClick={() => setSidebarOpen(false)} />
+      )}
+
+      <main className="flex-1 min-w-0">
+        <div className="lg:hidden flex items-center justify-between bg-white px-4 py-3 shadow-sm sticky top-0 z-20">
+          <button onClick={() => setSidebarOpen(true)} className="text-gray-600">
+            <Menu size={22} />
+          </button>
+          <p className="font-bold text-gray-800 capitalize">{tab}</p>
+          <div className="w-6" />
         </div>
 
-        <div className="flex flex-col gap-3">
-          {filteredUsers.length === 0 && (
-            <div className="bg-white rounded-2xl p-6 text-center text-gray-400">No users found</div>
-          )}
-          {filteredUsers.map((u) => (
-            <div key={u.id} className="bg-white rounded-2xl p-5 shadow-sm flex flex-col sm:flex-row gap-4">
-              <img
-                src={u.transactionImage}
-                alt="Transaction proof"
-                className="w-full sm:w-32 h-32 object-cover rounded-xl border border-gray-100"
-              />
-              <div className="flex-1">
-                <div className="flex items-center justify-between">
-                  <p className="font-bold text-gray-800">{u.name}</p>
-                  <span
-                    className={`text-xs font-semibold px-2 py-1 rounded-full capitalize ${
-                      u.status === "pending"
-                        ? "bg-yellow-100 text-yellow-700"
-                        : u.status === "approved"
-                        ? "bg-green-100 text-green-700"
-                        : "bg-red-100 text-red-700"
-                    }`}
-                  >
-                    {u.status}
-                  </span>
-                </div>
-                <p className="text-sm text-gray-500 mt-1">{u.phone}</p>
-                <p className="text-sm text-gray-500 capitalize">
-                  {u.pkg} plan · {u.paymentMethod}
-                </p>
-                <p className="text-sm text-gray-500">Balance: Rs {parseFloat(u.balance).toLocaleString()}</p>
-
-                {u.status === "pending" && (
-                  <div className="flex gap-2 mt-3">
-                    <button
-                      onClick={() => approve(u.id)}
-                      className="flex items-center gap-1 bg-green-600 text-white text-sm font-semibold px-4 py-2 rounded-xl"
-                    >
-                      <CheckCircle size={16} /> Approve
-                    </button>
-                    <button
-                      onClick={() => reject(u.id)}
-                      className="flex items-center gap-1 bg-red-600 text-white text-sm font-semibold px-4 py-2 rounded-xl"
-                    >
-                      <XCircle size={16} /> Reject
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
-          ))}
+        <div className="p-4 sm:p-6 lg:p-8 max-w-6xl mx-auto">
+          {tab === "overview" && <Overview stats={stats} />}
+          {tab === "deposits" && <Deposits users={users} reload={loadAll} />}
+          {tab === "withdrawals" && <Withdrawals withdrawals={withdrawals} reload={loadAll} />}
+          {tab === "users" && config && <Users users={users} packages={config.packages} reload={loadAll} />}
+          {tab === "ads" && <Ads ads={ads} reload={loadAll} />}
+          {tab === "settings" && config && <Settings config={config} reload={loadAll} />}
         </div>
-      </div>
+      </main>
     </div>
   );
 }

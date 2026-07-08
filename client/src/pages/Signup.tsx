@@ -6,14 +6,20 @@ import { Check, Upload, Copy } from "lucide-react";
 
 type PackageKey = "basic" | "standard" | "premium";
 
-const PACKAGES: Record<PackageKey, { label: string; price: number; dailyAds: number; tagline: string }> = {
-  basic: { label: "Basic", price: 1500, dailyAds: 5, tagline: "Great to get started" },
-  standard: { label: "Standard", price: 4500, dailyAds: 10, tagline: "Most popular choice" },
-  premium: { label: "Premium", price: 9500, dailyAds: 15, tagline: "Maximum earnings" },
-};
+interface AppConfig {
+  jazzcashNumber: string;
+  easypaisaNumber: string;
+  accountName: string;
+  adReward: number;
+  minWithdrawal: number;
+  packages: Record<PackageKey, { label: string; price: number; dailyAds: number }>;
+}
 
-const ACCOUNT_NUMBER = "03448311279";
-const ACCOUNT_NAME = "JazzBazar Official";
+const TAGLINES: Record<PackageKey, string> = {
+  basic: "Great to get started",
+  standard: "Most popular choice",
+  premium: "Maximum earnings",
+};
 
 export default function Signup() {
   const [, navigate] = useLocation();
@@ -22,6 +28,7 @@ export default function Signup() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [config, setConfig] = useState<AppConfig | null>(null);
 
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
@@ -30,6 +37,10 @@ export default function Signup() {
   const [paymentMethod, setPaymentMethod] = useState<"jazzcash" | "easypaisa" | "">("");
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string>("");
+
+  useEffect(() => {
+    apiRequest("/api/config").then(setConfig).catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (!file) {
@@ -55,8 +66,11 @@ export default function Signup() {
     setStep(3);
   }
 
+  const accountNumber = paymentMethod === "easypaisa" ? config?.easypaisaNumber : config?.jazzcashNumber;
+
   function copyAccount() {
-    navigator.clipboard.writeText(ACCOUNT_NUMBER);
+    if (!accountNumber) return;
+    navigator.clipboard.writeText(accountNumber);
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
   }
@@ -90,6 +104,16 @@ export default function Signup() {
     }
   }
 
+  if (!config) {
+    return (
+      <div className="mobile-shell flex items-center justify-center">
+        <div className="text-jb-red font-bold text-lg">Loading...</div>
+      </div>
+    );
+  }
+
+  const packages = config.packages;
+
   return (
     <div className="mobile-shell flex flex-col pb-10">
       <div className="bg-[#121212] px-6 pt-14 pb-8 rounded-b-[32px]">
@@ -101,7 +125,7 @@ export default function Signup() {
           {[1, 2, 3].map((s) => (
             <div
               key={s}
-              className={`h-1.5 flex-1 rounded-full ${s <= step ? "bg-jb-red" : "bg-gray-700"}`}
+              className={`h-1.5 flex-1 rounded-full transition-colors ${s <= step ? "bg-jb-red" : "bg-gray-700"}`}
             />
           ))}
         </div>
@@ -162,8 +186,8 @@ export default function Signup() {
       {step === 2 && (
         <div className="px-6 -mt-4 flex flex-col gap-4">
           <p className="font-bold text-gray-800 px-1">Step 2: Choose your package</p>
-          {(Object.keys(PACKAGES) as PackageKey[]).map((key) => {
-            const p = PACKAGES[key];
+          {(Object.keys(packages) as PackageKey[]).map((key) => {
+            const p = packages[key];
             return (
               <button
                 key={key}
@@ -172,7 +196,7 @@ export default function Signup() {
               >
                 <div>
                   <p className="font-bold text-gray-800 text-lg">{p.label}</p>
-                  <p className="text-xs text-gray-500">{p.tagline}</p>
+                  <p className="text-xs text-gray-500">{TAGLINES[key]}</p>
                   <p className="text-xs text-jb-red font-semibold mt-1">{p.dailyAds} ads / day</p>
                 </div>
                 <div className="text-right">
@@ -194,9 +218,9 @@ export default function Signup() {
           <div className="bg-white rounded-2xl shadow-lg p-5 flex flex-col gap-3">
             <p className="text-xs font-semibold text-gray-500">Selected Package</p>
             <div className="flex justify-between items-center">
-              <p className="font-bold text-gray-800">{pkg ? PACKAGES[pkg as PackageKey].label : ""}</p>
+              <p className="font-bold text-gray-800">{pkg ? packages[pkg as PackageKey].label : ""}</p>
               <p className="font-extrabold text-jb-red">
-                Rs {pkg ? PACKAGES[pkg as PackageKey].price.toLocaleString() : ""}
+                Rs {pkg ? packages[pkg as PackageKey].price.toLocaleString() : ""}
               </p>
             </div>
           </div>
@@ -219,16 +243,16 @@ export default function Signup() {
               <p className="text-xs text-gray-400 font-semibold uppercase tracking-wide">
                 Send payment to
               </p>
-              <p className="text-xs text-gray-400">{ACCOUNT_NAME}</p>
+              <p className="text-xs text-gray-400">{config.accountName}</p>
               <div className="flex items-center justify-between bg-white/10 rounded-xl px-4 py-3 mt-1">
-                <p className="font-mono text-lg tracking-wider">{ACCOUNT_NUMBER}</p>
+                <p className="font-mono text-lg tracking-wider">{accountNumber}</p>
                 <button type="button" onClick={copyAccount} className="text-jb-yellow flex items-center gap-1 text-xs font-semibold">
                   {copied ? <Check size={16} /> : <Copy size={16} />}
                   {copied ? "Copied" : "Copy"}
                 </button>
               </div>
               <p className="text-xs text-gray-400 mt-1">
-                Send exactly Rs {pkg ? PACKAGES[pkg as PackageKey].price.toLocaleString() : ""} via {paymentMethod === "jazzcash" ? "JazzCash" : "EasyPaisa"}
+                Send exactly Rs {pkg ? packages[pkg as PackageKey].price.toLocaleString() : ""} via {paymentMethod === "jazzcash" ? "JazzCash" : "EasyPaisa"}
               </p>
             </div>
           )}

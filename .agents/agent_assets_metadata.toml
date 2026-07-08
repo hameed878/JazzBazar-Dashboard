@@ -1,0 +1,38 @@
+uploads = []
+outputs = []
+
+[[generated]]
+id = "ZccpBR5TsiIj6yfff3swE"
+uri = "file://client/src/assets/ads/falak-mobile.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "IFGjnvA64vTnsL93dULs4"
+uri = "file://client/src/assets/ads/zaiqa-chips.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "DOQOS-5BqCR-VQNJf-7Az"
+uri = "file://client/src/assets/ads/bazaar-online.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "Z3f_AadezpIYw48Jp3Epe"
+uri = "file://client/src/assets/ads/sohni-textiles.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "QjezJXSMebPu26_99yyjH"
+uri = "file://client/src/assets/ads/speedy-riders.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "M_PJEl94nZb0LyK0lNrDc"
+uri = "file://client/src/assets/ads/karims-kitchen.png"
+type = "image"
+title = "generated_image"

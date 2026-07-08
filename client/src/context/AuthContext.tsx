@@ -12,7 +12,9 @@ export interface SafeUser {
   balance: string;
   adsWatchedToday: number;
   lastAdDate: string | null;
+  totalAdsWatched: number;
   isAdmin: boolean;
+  isBanned: boolean;
   createdAt: string;
 }
 
