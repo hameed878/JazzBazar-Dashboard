@@ -232,6 +232,22 @@ async function ensureAds() {
     await storage.createAd({ ...ad, active: true });
   }
   if (toSeed.length > 0) log(`Seeded ${toSeed.length} additional ads (total target: 15)`);
+
+  // Migrate broken local thumbnail paths to working Unsplash URLs
+  const thumbMap: Record<string, string> = {
+    "/ads/falak-mobile.png": "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=400&q=80",
+    "/ads/zaiqa-chips.png": "https://images.unsplash.com/photo-1566478989037-eec170784d0b?w=400&q=80",
+    "/ads/bazaar-online.png": "https://images.unsplash.com/photo-1472851294608-062f824d29cc?w=400&q=80",
+    "/ads/sohni-textiles.png": "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400&q=80",
+    "/ads/speedy-riders.png": "https://images.unsplash.com/photo-1526367790999-0150786686a2?w=400&q=80",
+    "/ads/karims-kitchen.png": "https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=400&q=80",
+  };
+  const allAds = await storage.getAllAds();
+  for (const ad of allAds) {
+    if (thumbMap[ad.thumbnailUrl]) {
+      await storage.updateAd(ad.id, { thumbnailUrl: thumbMap[ad.thumbnailUrl] });
+    }
+  }
 }
 
 (async () => {

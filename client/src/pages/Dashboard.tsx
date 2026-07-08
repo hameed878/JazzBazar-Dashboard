@@ -72,6 +72,8 @@ export default function Dashboard() {
   const [historyLoading, setHistoryLoading] = useState(false);
   const [showPlanInfo, setShowPlanInfo] = useState(false);
   const [activeTab, setActiveTab] = useState<"home" | "history" | "plan">("home");
+  const [videoLoading, setVideoLoading] = useState(true);
+  const [videoPaused, setVideoPaused] = useState(false);
   const videoRef = useRef<HTMLVideoElement | null>(null);
 
   useEffect(() => {
@@ -110,6 +112,8 @@ export default function Dashboard() {
     }
     setMessage(null);
     setVideoError(false);
+    setVideoLoading(true);
+    setVideoPaused(false);
     setActiveAd(ads[Math.floor(Math.random() * ads.length)]);
     setProgress(0);
     setWatching(true);
@@ -120,6 +124,8 @@ export default function Dashboard() {
     if (adsLeft <= 0) { openAdPicker(); return; }
     setMessage(null);
     setVideoError(false);
+    setVideoLoading(true);
+    setVideoPaused(false);
     setActiveAd(ad);
     setProgress(0);
     setWatching(true);
@@ -144,10 +150,23 @@ export default function Dashboard() {
   }
 
   function closeAdEarly() {
+    if (videoRef.current) {
+      videoRef.current.pause();
+      videoRef.current.src = "";
+    }
     setWatching(false);
     setActiveAd(null);
     setProgress(0);
     setVideoError(false);
+    setVideoLoading(true);
+    setVideoPaused(false);
+  }
+
+  function tapToPlay() {
+    if (videoRef.current) {
+      videoRef.current.play().catch(() => {});
+      setVideoPaused(false);
+    }
   }
 
   async function handleWithdraw(e: React.FormEvent) {
@@ -424,68 +443,137 @@ export default function Dashboard() {
 
       {/* ── Ad Player ── */}
       {watching && activeAd && (
-        <div className="fixed inset-0 bg-black z-50 flex flex-col">
-          <div className="flex items-center justify-between px-4 py-3 bg-black/80">
+        <div className="fixed inset-0 bg-black z-50 flex flex-col" style={{ paddingTop: "env(safe-area-inset-top)", paddingBottom: "env(safe-area-inset-bottom)" }}>
+          {/* Top bar */}
+          <div className="flex items-center justify-between px-4 py-3 bg-gradient-to-b from-black/90 to-transparent absolute top-0 left-0 right-0 z-10" style={{ paddingTop: "calc(env(safe-area-inset-top) + 12px)" }}>
             <div>
-              <p className="text-gray-400 text-[10px] uppercase tracking-wide">Sponsored</p>
-              <p className="text-white font-bold text-sm">{activeAd.brand}</p>
+              <p className="text-white/50 text-[9px] uppercase tracking-widest font-semibold">Sponsored</p>
+              <p className="text-white font-bold text-sm leading-tight">{activeAd.brand}</p>
             </div>
             <button
               onClick={closeAdEarly}
-              className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-white"
+              className="w-9 h-9 rounded-full bg-black/50 border border-white/20 flex items-center justify-center text-white active:scale-95 transition"
             >
               <X size={18} />
             </button>
           </div>
 
-          <div className="flex-1 flex items-center justify-center bg-black">
+          {/* Video area */}
+          <div className="flex-1 relative bg-black flex items-center justify-center overflow-hidden">
             {videoError ? (
-              <div className="text-center px-8">
-                <AlertCircle size={48} className="text-gray-500 mx-auto mb-3" />
-                <p className="text-white/70 text-sm mb-2">Video failed to load</p>
-                <p className="text-white/40 text-xs mb-6">Please try a different ad</p>
-                <button
-                  onClick={closeAdEarly}
-                  className="bg-white/10 text-white font-bold px-6 py-3 rounded-2xl"
-                >
-                  Go Back
-                </button>
+              /* Error state */
+              <div className="text-center px-8 py-12">
+                <div className="w-16 h-16 rounded-full bg-white/10 flex items-center justify-center mx-auto mb-4">
+                  <AlertCircle size={32} className="text-white/60" />
+                </div>
+                <p className="text-white font-bold mb-1">Video unavailable</p>
+                <p className="text-white/50 text-sm mb-8">This ad couldn't load. Try another one.</p>
+                <div className="flex flex-col gap-3 max-w-[200px] mx-auto">
+                  <button
+                    onClick={() => {
+                      setVideoError(false);
+                      setVideoLoading(true);
+                      // Retry with a different ad
+                      const otherAds = ads.filter(a => a.id !== activeAd.id);
+                      if (otherAds.length > 0) {
+                        setActiveAd(otherAds[Math.floor(Math.random() * otherAds.length)]);
+                      } else {
+                        closeAdEarly();
+                      }
+                    }}
+                    className="bg-jb-red text-white font-bold py-3 rounded-2xl active:scale-95 transition"
+                  >
+                    Try Another Ad
+                  </button>
+                  <button
+                    onClick={closeAdEarly}
+                    className="bg-white/10 text-white/70 font-semibold py-3 rounded-2xl active:scale-95 transition"
+                  >
+                    Go Back
+                  </button>
+                </div>
               </div>
             ) : (
-              <video
-                ref={videoRef}
-                key={activeAd.videoUrl}
-                src={activeAd.videoUrl}
-                autoPlay
-                muted
-                playsInline
-                controls={false}
-                className="max-h-full max-w-full w-full"
-                onTimeUpdate={(e) => {
-                  const v = e.currentTarget;
-                  if (v.duration) setProgress((v.currentTime / v.duration) * 100);
-                }}
-                onEnded={handleVideoEnded}
-                onError={() => setVideoError(true)}
-              />
+              <>
+                {/* Video element */}
+                <video
+                  ref={videoRef}
+                  key={activeAd.videoUrl}
+                  src={activeAd.videoUrl}
+                  autoPlay
+                  muted
+                  playsInline
+                  className="w-full h-full object-contain"
+                  onLoadStart={() => { setVideoLoading(true); setVideoError(false); }}
+                  onCanPlay={() => {
+                    setVideoLoading(false);
+                    videoRef.current?.play().catch(() => setVideoPaused(true));
+                  }}
+                  onPlay={() => setVideoPaused(false)}
+                  onPause={() => setVideoPaused(true)}
+                  onTimeUpdate={(e) => {
+                    const v = e.currentTarget;
+                    if (v.duration) setProgress((v.currentTime / v.duration) * 100);
+                  }}
+                  onEnded={handleVideoEnded}
+                  onError={() => { setVideoError(true); setVideoLoading(false); }}
+                />
+
+                {/* Loading spinner */}
+                {videoLoading && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/60">
+                    <div className="w-12 h-12 rounded-full border-2 border-white/20 border-t-white animate-spin" />
+                  </div>
+                )}
+
+                {/* Tap-to-play overlay (shown when paused and not loading) */}
+                {videoPaused && !videoLoading && (
+                  <button
+                    onClick={tapToPlay}
+                    className="absolute inset-0 flex items-center justify-center bg-black/40"
+                  >
+                    <div className="w-20 h-20 rounded-full bg-white/20 border-2 border-white/60 flex items-center justify-center backdrop-blur-sm active:scale-95 transition">
+                      <PlayCircle size={48} className="text-white ml-1" />
+                    </div>
+                  </button>
+                )}
+              </>
             )}
           </div>
 
-          <div className="px-4 pt-3 pb-6 bg-black/80">
-            <div className="w-full h-1.5 bg-white/20 rounded-full overflow-hidden">
+          {/* Bottom controls */}
+          {!videoError && (
+            <div className="px-5 pt-3 pb-5 bg-gradient-to-t from-black to-transparent">
+              {/* Progress bar */}
               <div
-                className="h-full bg-jb-yellow rounded-full transition-all duration-300"
-                style={{ width: `${progress}%` }}
-              />
+                className="w-full h-1 bg-white/20 rounded-full overflow-hidden mb-3 cursor-pointer"
+                onClick={(e) => {
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  const pct = (e.clientX - rect.left) / rect.width;
+                  if (videoRef.current?.duration) {
+                    videoRef.current.currentTime = pct * videoRef.current.duration;
+                  }
+                }}
+              >
+                <div
+                  className="h-full bg-jb-yellow rounded-full transition-all duration-200"
+                  style={{ width: `${progress}%` }}
+                />
+              </div>
+              <div className="flex items-center justify-between">
+                <div className="min-w-0 flex-1 mr-3">
+                  <p className="text-white text-xs font-semibold truncate">{activeAd.brand}</p>
+                  <p className="text-white/40 text-[10px] truncate">{activeAd.title}</p>
+                </div>
+                <div className="shrink-0 bg-jb-yellow/20 border border-jb-yellow/40 rounded-full px-3 py-1">
+                  <p className="text-jb-yellow text-xs font-bold">+${config.adReward.toFixed(2)}</p>
+                </div>
+              </div>
+              <p className="text-center text-white/30 text-[10px] mt-2">
+                {progress < 100 ? "Watch till the end to earn your reward" : "Almost done — claiming reward…"}
+              </p>
             </div>
-            <div className="flex items-center justify-between mt-2">
-              <p className="text-white/60 text-xs">{activeAd.title}</p>
-              <p className="text-jb-yellow text-xs font-bold">+${config.adReward.toFixed(2)}</p>
-            </div>
-            <p className="text-center text-white/40 text-[10px] mt-1">
-              Watch till the end to earn your reward
-            </p>
-          </div>
+          )}
         </div>
       )}
 
