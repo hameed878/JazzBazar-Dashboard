@@ -656,35 +656,7 @@ async function registerRoutes(app2) {
 // server/vite.ts
 import express from "express";
 import fs2 from "fs";
-import path3 from "path";
-import { createServer as createViteServer, createLogger } from "vite";
-
-// vite.config.ts
-import { defineConfig } from "vite";
-import react from "@vitejs/plugin-react";
 import path2 from "path";
-var vite_config_default = defineConfig({
-  plugins: [react()],
-  resolve: {
-    alias: {
-      "@": path2.resolve(import.meta.dirname, "client", "src"),
-      "@shared": path2.resolve(import.meta.dirname, "shared"),
-      "@assets": path2.resolve(import.meta.dirname, "attached_assets")
-    }
-  },
-  root: path2.resolve(import.meta.dirname, "client"),
-  build: {
-    outDir: path2.resolve(import.meta.dirname, "dist", "public"),
-    emptyOutDir: true
-  },
-  server: {
-    host: "0.0.0.0",
-    allowedHosts: true
-  }
-});
-
-// server/vite.ts
-var viteLogger = createLogger();
 function log(message, source = "express") {
   const formattedTime = (/* @__PURE__ */ new Date()).toLocaleTimeString("en-US", {
     hour: "numeric",
@@ -695,13 +667,24 @@ function log(message, source = "express") {
   console.log(`${formattedTime} [${source}] ${message}`);
 }
 async function setupVite(app2, server) {
+  const { createServer: createViteServer, createLogger } = await import("vite");
+  const { default: react } = await import("@vitejs/plugin-react");
+  const viteLogger = createLogger();
   const serverOptions = {
     middlewareMode: true,
     hmr: { server },
     allowedHosts: true
   };
   const vite = await createViteServer({
-    ...vite_config_default,
+    plugins: [react()],
+    resolve: {
+      alias: {
+        "@": path2.resolve(import.meta.dirname, "..", "client", "src"),
+        "@shared": path2.resolve(import.meta.dirname, "..", "shared"),
+        "@assets": path2.resolve(import.meta.dirname, "..", "attached_assets")
+      }
+    },
+    root: path2.resolve(import.meta.dirname, "..", "client"),
     configFile: false,
     customLogger: {
       ...viteLogger,
@@ -717,7 +700,7 @@ async function setupVite(app2, server) {
   app2.use(async (req, res, next) => {
     const url = req.originalUrl;
     try {
-      const clientTemplate = path3.resolve(import.meta.dirname, "..", "client", "index.html");
+      const clientTemplate = path2.resolve(import.meta.dirname, "..", "client", "index.html");
       let template = await fs2.promises.readFile(clientTemplate, "utf-8");
       template = template.replace(
         `src="/src/main.tsx"`,
@@ -732,7 +715,7 @@ async function setupVite(app2, server) {
   });
 }
 function serveStatic(app2) {
-  const distPath = path3.resolve(import.meta.dirname, "public");
+  const distPath = path2.resolve(import.meta.dirname, "public");
   if (!fs2.existsSync(distPath)) {
     throw new Error(
       `Could not find the build directory: ${distPath}, make sure to build the client first`
@@ -740,7 +723,7 @@ function serveStatic(app2) {
   }
   app2.use(express.static(distPath));
   app2.use((_req, res) => {
-    res.sendFile(path3.resolve(distPath, "index.html"));
+    res.sendFile(path2.resolve(distPath, "index.html"));
   });
 }
 

@@ -1,11 +1,13 @@
 import express, { type Express } from "express";
 import fs from "fs";
 import path from "path";
-import { createServer as createViteServer, createLogger } from "vite";
 import { type Server } from "http";
-import viteConfig from "../vite.config";
 
-const viteLogger = createLogger();
+// "vite" (and the vite.config module, which itself imports "vite") are dev-only
+// tools. They are dynamically imported inside setupVite() below so that the
+// production bundle never needs them at module-load time — this lets Railway
+// (or any deploy target) safely `npm prune --omit=dev` after building without
+// breaking the running server, which only ever calls serveStatic() in prod.
 
 export function log(message: string, source = "express") {
   const formattedTime = new Date().toLocaleTimeString("en-US", {
@@ -19,6 +21,13 @@ export function log(message: string, source = "express") {
 }
 
 export async function setupVite(app: Express, server: Server) {
+  // Dynamically imported so esbuild's static import graph never pulls "vite",
+  // "@vitejs/plugin-react", or vite.config.ts (which itself imports "vite")
+  // into the production server bundle — see note above.
+  const { createServer: createViteServer, createLogger } = await import("vite");
+  const { default: react } = await import("@vitejs/plugin-react");
+  const viteLogger = createLogger();
+
   const serverOptions = {
     middlewareMode: true,
     hmr: { server },
@@ -26,7 +35,15 @@ export async function setupVite(app: Express, server: Server) {
   };
 
   const vite = await createViteServer({
-    ...viteConfig,
+    plugins: [react()],
+    resolve: {
+      alias: {
+        "@": path.resolve(import.meta.dirname, "..", "client", "src"),
+        "@shared": path.resolve(import.meta.dirname, "..", "shared"),
+        "@assets": path.resolve(import.meta.dirname, "..", "attached_assets"),
+      },
+    },
+    root: path.resolve(import.meta.dirname, "..", "client"),
     configFile: false,
     customLogger: {
       ...viteLogger,

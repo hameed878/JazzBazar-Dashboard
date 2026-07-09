@@ -1,0 +1,27 @@
+Good call — let's give Replit the complete picture so it can fix everything at once instead of us patching one error at a time. Paste this into Replit AI:
+
+"I'm deploying this app to Railway (a cloud hosting platform) as a production web service, and need your help making the build and deploy process fully reliable. Here's the full context:
+Deployment target: Railway, using their Railpack builder, controlled by a railway.json file in the repo root.
+The deployment flow that needs to work:
+
+Install all dependencies needed for both building AND running the app
+Build the frontend (Vite) and backend (esbuild) into a dist/ folder
+Start the production server with node dist/index.js
+
+Errors we've hit, in order, while trying to get this working:
+
+npm ci ran out of memory on Railway's build machine when installing all dependencies at once
+When we tried to skip dev dependencies during install (--omit=dev) to reduce memory usage, the production app crashed with Cannot find module 'drizzle-orm/pg-core' — even though drizzle-orm is correctly listed under regular dependencies
+We fixed a real bug where the Vite build was outputting to server/public instead of dist/public, causing a static file path mismatch
+After that fix, skipping dev dependencies during install caused a NEW error: vite: not found during the build step, because vite is a devDependency needed to run npm run build
+We tried several combinations of railway.json configs (Nixpacks vs Railpack builder, various buildCommand/startCommand combos, removing NODE_ENV from env vars) but keep hitting either the memory crash (when installing everything) or vite: not found (when skipping dev dependencies)
+
+What I need from you:
+Please figure out and implement a deployment configuration that reliably works within a memory-constrained build environment (Railway's free tier build machine appears to have limited RAM, roughly 512MB-1GB). Consider:
+
+Whether vite, esbuild, typescript, and other build-only tools should be moved to regular dependencies so they're never skipped, while finding another way to reduce memory usage during install (e.g., using npm install --prefer-offline --no-audit --no-fund, or reducing the dependency tree, or pruning after build)
+Whether the build step itself can be made lighter/faster to avoid memory pressure
+Whether a multi-stage approach makes sense: install everything needed for build, build it, THEN prune dev dependencies afterward using npm prune --omit=dev (which removes them without affecting the already-built dist/ output), so the final running container has a smaller footprint but the build itself never lacks a needed tool
+The final railway.json should have a buildCommand and startCommand that you have PERSONALLY tested end-to-end in a clean directory (simulating no node_modules, no dist folder) to confirm the full chain works: fresh install → build → start → server responds without errors
+
+Please investigate, implement the most robust solution (not just a quick patch), test it thoroughly end-to-end in isolation, and only commit and push once you've confirmed with your own testing that this exact sequence works without errors. Explain what you changed and why
