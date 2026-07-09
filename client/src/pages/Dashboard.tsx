@@ -396,12 +396,11 @@ export default function Dashboard() {
             Watch Ads
           </button>
           <button
-            onClick={() => { setShowWithdraw(true); setMessage(null); }}
-            disabled={isPending}
-            className="flex-1 bg-white/10 border border-white/20 text-white font-bold rounded-2xl py-3.5 flex items-center justify-center gap-2 active:scale-[0.98] transition disabled:opacity-50"
+            onClick={() => { setActiveTab("plan"); setShowPlanInfo(true); }}
+            className={`flex-1 rounded-2xl py-3.5 flex items-center justify-center gap-2 font-bold text-white active:scale-[0.98] transition bg-gradient-to-r ${planColors[user.pkg as PackageKey] ?? planColors.basic}`}
           >
-            <Wallet size={18} />
-            Withdraw
+            <TrendingUp size={18} />
+            {info.label}
           </button>
         </div>
       </div>
