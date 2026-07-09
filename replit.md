@@ -25,6 +25,12 @@ A mobile-first web app inspired by JazzCash, where users sign up, pick a paid me
 - Withdrawals are recorded as pending requests and deducted from balance immediately; admin "Pay" marks them approved/paid, admin "Reject" refunds the balance automatically.
 - Ad videos use public Google GTV sample mp4s paired with AI-generated thumbnail images, labeled with fictional Pakistani-style brand names (not real trademarks) to look realistic without trademark issues. Admin can add/edit/delete ads with custom video/thumbnail URLs.
 
+## Running the project
+
+- `npm run dev` starts the Express + Vite dev server on port 5000 (bound to the "Start application" workflow).
+- Dependencies are installed via `npm install`; after a fresh import, run this first if the workflow fails with `tsx: not found`.
+- Requires the `NEON_DATABASE_URL` secret (external Neon Postgres) and `SESSION_SECRET`.
+
 ## User preferences
 
 None recorded yet.
