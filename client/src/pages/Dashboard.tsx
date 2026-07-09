@@ -128,13 +128,14 @@ export default function Dashboard() {
         },
         events: {
           onReady: (e: any) => {
-                // Force the iframe to fill its container regardless of aspect ratio
+                // Make the iframe taller than its container and shift it up so the
+                // YouTube control bar (~60px) is pushed below the overflow-hidden edge.
                 const iframe = e.target.getIframe();
                 iframe.style.position = "absolute";
-                iframe.style.top = "0";
+                iframe.style.top = "-60px";          // shift up — hides title bar too
                 iframe.style.left = "0";
                 iframe.style.width = "100%";
-                iframe.style.height = "100%";
+                iframe.style.height = "calc(100% + 120px)"; // extra 60px top + 60px bottom
                 setVideoLoading(false);
               },
           onStateChange: (e: any) => {
@@ -561,8 +562,8 @@ export default function Dashboard() {
             </button>
           </div>
 
-          {/* Video area */}
-          <div className="flex-1 relative bg-black">
+          {/* Video area — overflow-hidden clips the YouTube control bar */}
+          <div className="flex-1 relative bg-black overflow-hidden">
             {videoError ? (
               /* Error state */
               <div className="text-center px-8 py-12">
@@ -601,23 +602,34 @@ export default function Dashboard() {
                 {/* YouTube player container — IFrame API replaces this div */}
                 <div ref={ytContainerRef} className="absolute inset-0" />
 
-                {/* Loading spinner */}
+                {/*
+                  Transparent intercept layer — sits above the iframe at all times.
+                  This prevents ANY click from reaching YouTube's native controls
+                  (progress bar, pause button, logo, "More videos", etc.).
+                  Tapping it toggles play/pause through our own handler.
+                */}
+                <div
+                  className="absolute inset-0 z-10"
+                  onClick={videoPaused ? tapToPlay : () => {
+                    ytPlayerRef.current?.pauseVideo?.();
+                    setVideoPaused(true);
+                  }}
+                />
+
+                {/* Loading spinner (above intercept layer) */}
                 {videoLoading && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-black">
+                  <div className="absolute inset-0 z-20 flex items-center justify-center bg-black">
                     <div className="w-12 h-12 rounded-full border-2 border-white/20 border-t-white animate-spin" />
                   </div>
                 )}
 
-                {/* Tap-to-play overlay when autoplay is blocked or video is paused */}
+                {/* Tap-to-play overlay when paused */}
                 {videoPaused && !videoLoading && (
-                  <button
-                    onClick={tapToPlay}
-                    className="absolute inset-0 flex items-center justify-center bg-black/50"
-                  >
-                    <div className="w-20 h-20 rounded-full bg-white/20 border-2 border-white/60 flex items-center justify-center backdrop-blur-sm active:scale-95 transition">
+                  <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/40 pointer-events-none">
+                    <div className="w-20 h-20 rounded-full bg-white/20 border-2 border-white/60 flex items-center justify-center backdrop-blur-sm">
                       <PlayCircle size={48} className="text-white ml-1" />
                     </div>
-                  </button>
+                  </div>
                 )}
               </>
             )}
