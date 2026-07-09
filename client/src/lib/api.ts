@@ -16,7 +16,13 @@ export async function apiRequest(url: string, options: RequestInit = {}) {
   }
 
   if (!res.ok) {
-    throw new Error(data?.message || "Something went wrong");
+    // Broadcast session-expired events so any UI layer can react
+    if (res.status === 401) {
+      window.dispatchEvent(new CustomEvent("api:unauthorized", { detail: { url } }));
+    }
+    const err: any = new Error(data?.message || "Something went wrong");
+    err.status = res.status;
+    throw err;
   }
 
   return data;

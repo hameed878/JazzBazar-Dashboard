@@ -51,6 +51,16 @@ export default function Admin() {
     })();
   }, []);
 
+  // Global 401 handler — any admin API call that returns 401 brings back the login form
+  useEffect(() => {
+    function onUnauthorized() {
+      setLoggedIn(false);
+      setError("Session expired. Please log in again.");
+    }
+    window.addEventListener("api:unauthorized", onUnauthorized);
+    return () => window.removeEventListener("api:unauthorized", onUnauthorized);
+  }, []);
+
   async function loadAll() {
     const [statsData, usersData, withdrawalsData, adsData, configData] = await Promise.all([
       apiRequest("/api/admin/stats"),
