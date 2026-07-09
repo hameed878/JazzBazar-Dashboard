@@ -6,3 +6,4 @@ server/uploads/*
 *.log
 .upm
 migrations
+.vite-cache

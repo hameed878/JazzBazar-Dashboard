@@ -44,6 +44,7 @@ export async function setupVite(app: Express, server: Server) {
       },
     },
     root: path.resolve(import.meta.dirname, "..", "client"),
+    cacheDir: path.resolve(import.meta.dirname, "..", ".vite-cache"),
     configFile: false,
     customLogger: {
       ...viteLogger,

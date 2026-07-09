@@ -685,6 +685,7 @@ async function setupVite(app2, server) {
       }
     },
     root: path2.resolve(import.meta.dirname, "..", "client"),
+    cacheDir: path2.resolve(import.meta.dirname, "..", ".vite-cache"),
     configFile: false,
     customLogger: {
       ...viteLogger,
