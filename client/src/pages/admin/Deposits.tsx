@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { CheckCircle, XCircle, Image as ImageIcon } from "lucide-react";
+import { CheckCircle, XCircle, Image as ImageIcon, Download, X } from "lucide-react";
 import { apiRequest } from "@/lib/api";
 import type { AdminUser } from "./types";
 
@@ -17,6 +17,21 @@ export default function Deposits({ users, reload }: { users: AdminUser[]; reload
   async function reject(id: number) {
     await apiRequest(`/api/admin/users/${id}/reject`, { method: "POST" });
     reload();
+  }
+
+  function downloadImage(url: string, filename: string) {
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    a.target = "_blank";
+    a.rel = "noopener noreferrer";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  }
+
+  function filenameFromUrl(url: string) {
+    return url.split("/").pop() || "transaction.jpg";
   }
 
   return (
@@ -44,18 +59,32 @@ export default function Deposits({ users, reload }: { users: AdminUser[]; reload
         )}
         {filteredUsers.map((u) => (
           <div key={u.id} className="bg-white rounded-2xl p-4 sm:p-5 shadow-sm flex flex-col sm:flex-row gap-4">
-            <button
-              onClick={() => setPreview(u.transactionImage)}
-              className="w-full sm:w-32 h-32 shrink-0 rounded-xl overflow-hidden border border-gray-100 relative group"
-            >
-              {u.transactionImage ? (
-                <img src={u.transactionImage} alt="Transaction proof" className="w-full h-full object-cover" />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center bg-gray-50 text-gray-300">
-                  <ImageIcon size={24} />
-                </div>
+            {/* Thumbnail */}
+            <div className="relative w-full sm:w-32 h-32 shrink-0">
+              <button
+                onClick={() => u.transactionImage && setPreview(u.transactionImage)}
+                className="w-full h-full rounded-xl overflow-hidden border border-gray-100"
+              >
+                {u.transactionImage ? (
+                  <img src={u.transactionImage} alt="Transaction proof" className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center bg-gray-50 text-gray-300">
+                    <ImageIcon size={24} />
+                  </div>
+                )}
+              </button>
+              {u.transactionImage && (
+                <button
+                  onClick={() => downloadImage(u.transactionImage!, filenameFromUrl(u.transactionImage!))}
+                  title="Download image"
+                  className="absolute bottom-1.5 right-1.5 bg-black/60 hover:bg-black/80 text-white rounded-lg p-1.5 transition-colors"
+                >
+                  <Download size={14} />
+                </button>
               )}
-            </button>
+            </div>
+
+            {/* Info */}
             <div className="flex-1 min-w-0">
               <div className="flex items-center justify-between gap-2 flex-wrap">
                 <p className="font-bold text-gray-800">{u.name}</p>
@@ -99,12 +128,32 @@ export default function Deposits({ users, reload }: { users: AdminUser[]; reload
         ))}
       </div>
 
+      {/* Lightbox */}
       {preview && (
         <div
-          className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-6"
+          className="fixed inset-0 bg-black/85 flex flex-col items-center justify-center z-50 p-6"
           onClick={() => setPreview(null)}
         >
-          <img src={preview} alt="Transaction proof full size" className="max-h-full max-w-full rounded-xl" />
+          <div
+            className="relative max-h-full max-w-full flex flex-col items-center gap-3"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <img src={preview} alt="Transaction proof full size" className="max-h-[80vh] max-w-full rounded-xl" />
+            <div className="flex gap-3">
+              <button
+                onClick={() => downloadImage(preview, filenameFromUrl(preview))}
+                className="flex items-center gap-2 bg-white text-gray-800 font-semibold text-sm px-5 py-2.5 rounded-xl hover:bg-gray-100 transition-colors"
+              >
+                <Download size={16} /> Download
+              </button>
+              <button
+                onClick={() => setPreview(null)}
+                className="flex items-center gap-2 bg-white/10 text-white font-semibold text-sm px-5 py-2.5 rounded-xl hover:bg-white/20 transition-colors"
+              >
+                <X size={16} /> Close
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

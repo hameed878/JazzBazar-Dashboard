@@ -68,7 +68,8 @@ function todayStr() {
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  app.use("/uploads", (await import("express")).default.static(uploadsDir));
+  // Serve transaction images only to authenticated admins
+  app.use("/uploads", requireAdmin, (await import("express")).default.static(uploadsDir));
 
   app.get("/api/config", async (_req, res) => {
     const config = await getConfig();

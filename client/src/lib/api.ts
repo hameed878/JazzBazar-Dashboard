@@ -16,8 +16,13 @@ export async function apiRequest(url: string, options: RequestInit = {}) {
   }
 
   if (!res.ok) {
-    // Broadcast session-expired events so any UI layer can react
-    if (res.status === 401) {
+    // Broadcast session-expired events for admin-protected routes only (not login endpoints)
+    // so that bad-credential 401s don't trigger the "session expired" flow
+    if (
+      res.status === 401 &&
+      url.startsWith("/api/admin/") &&
+      !url.endsWith("/login")
+    ) {
       window.dispatchEvent(new CustomEvent("api:unauthorized", { detail: { url } }));
     }
     const err: any = new Error(data?.message || "Something went wrong");
