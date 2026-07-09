@@ -5,7 +5,7 @@
     "nixpacksPlan": {
       "phases": {
         "install": {
-          "cmds": ["npm ci --omit=dev"]
+          "cmds": ["npm ci"]
         },
         "build": {
           "cmds": ["npm run build"]
