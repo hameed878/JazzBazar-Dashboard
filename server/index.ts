@@ -98,168 +98,185 @@ async function ensureAdminUser() {
 async function ensureAds() {
   const existingAds = await storage.getAllAds();
 
-  // Always migrate broken Google Cloud Storage URLs (return 403) to working alternatives
-  const videoMigration: Record<string, string> = {
-    "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4": "https://www.w3schools.com/html/mov_bbb.mp4",
-    "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4": "https://www.w3schools.com/html/movie.mp4",
-    "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4": "https://media.w3.org/2010/05/sintel/trailer.mp4",
-    "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4": "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4",
-    "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerMeltdowns.mp4": "https://media.w3.org/2010/05/video/movie_300.mp4",
-    "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/SubaruOutbackOnStreetAndDirt.mp4": "https://cdn.plyr.io/static/demo/View_From_A_Blue_Moon_Trailer-576p.mp4",
-    "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/WeAreGoingOnBullrun.mp4": "https://filesamples.com/samples/video/mp4/sample_640x360.mp4",
-    "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/WhatCarCanYouGetForAGrand.mp4": "https://www.w3schools.com/html/mov_bbb.mp4",
-    "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/VolkswagenGTIReview.mp4": "https://media.w3.org/2010/05/sintel/trailer.mp4",
-    "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4": "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4",
-    "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4": "https://cdn.plyr.io/static/demo/View_From_A_Blue_Moon_Trailer-576p.mp4",
-    "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4": "https://media.w3.org/2010/05/video/movie_300.mp4",
-    "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4": "https://www.w3schools.com/html/mov_bbb.mp4",
+  // Migrate any non-YouTube ad to the correct Pakistani brand YouTube URL by title.
+  // This runs every startup so new installs and existing installs are both fixed.
+  const titleToYouTube: Record<string, string> = {
+    // Basic tier
+    "Jazz — Pakistan Mein Sab Se Tez Network":      "https://www.youtube.com/watch?v=ss2M1J9IFiA",
+    "Ufone 4G — U Tou Babar Hai":                   "https://www.youtube.com/watch?v=D6fPrRaTwBE",
+    "Telenor Pakistan — Zainab Ki Kahani":           "https://www.youtube.com/watch?v=_u_naO4mWLc",
+    "Surf Excel — KhushiyonKaSadqa Ramazan 2022":   "https://www.youtube.com/watch?v=zTsBZMCq3a8",
+    "NESCAFÉ Pakistan — Imkan Hai":                  "https://www.youtube.com/watch?v=VySzhAKpBew",
+    // Standard tier
+    "Ufone — Sohni Mahiwal Weekly Offer":            "https://www.youtube.com/watch?v=O3SjrE7AmEw",
+    "Knorr Pakistan — Nayi Duniya Ke Zaiqay":        "https://www.youtube.com/watch?v=wy1tjUJX4f0",
+    "MILO Pakistan — Fuel For School":               "https://www.youtube.com/watch?v=JSl206o6mDU",
+    "HBL — Islamic Personal Finance":                "https://www.youtube.com/watch?v=dCK8bctt9EY",
+    "Zong 4G — Business Solutions":                  "https://www.youtube.com/watch?v=BvsOcru1DPE",
+    // Premium tier
+    "Pepsi Pakistan — Khelenge Beat Pe (PSL 11)":   "https://www.youtube.com/watch?v=DNd4nwMoUIM",
+    "Surf Excel — Daag Ache Hain (Puddlewar)":      "https://www.youtube.com/watch?v=6o6JJIkamVY",
+    "Telenor Pakistan — Gaming Sim":                 "https://www.youtube.com/watch?v=5C4tZUKXEMo",
+    "Shan Foods — Masala Cola":                      "https://www.youtube.com/watch?v=rJSieo5RNlU",
+    "Nestlé Fruita Vitals — Taste of Pakistan":     "https://www.youtube.com/watch?v=ZoMpagkhJTY",
+    // Legacy placeholder titles → redirect to correct YouTube ads
+    "Falak Mobile — Unlimited 4G Load Offer":        "https://www.youtube.com/watch?v=ss2M1J9IFiA",
+    "Zaiqa Chips — Crunch Into Flavor":              "https://www.youtube.com/watch?v=O3SjrE7AmEw",
+    "Bazaar Online — Shop Everything, Fast":         "https://www.youtube.com/watch?v=wy1tjUJX4f0",
+    "Sohni Textiles — New Winter Collection":        "https://www.youtube.com/watch?v=zTsBZMCq3a8",
+    "Speedy Riders — Delivered in 30 Minutes":       "https://www.youtube.com/watch?v=VySzhAKpBew",
+    "Karim's Kitchen — Taste of Home":               "https://www.youtube.com/watch?v=wy1tjUJX4f0",
+    "PakDrive — Find Your Dream Car":                "https://www.youtube.com/watch?v=BvsOcru1DPE",
+    "HealthPlus — Your Wellness Partner":            "https://www.youtube.com/watch?v=JSl206o6mDU",
+    "BrightStar Academy — Learn & Grow":             "https://www.youtube.com/watch?v=dCK8bctt9EY",
+    "GlowUp Cosmetics — Shine Every Day":            "https://www.youtube.com/watch?v=rJSieo5RNlU",
+    "SkyTravel — Fly Anywhere for Less":             "https://www.youtube.com/watch?v=DNd4nwMoUIM",
+    "CryptoEarn PK — Invest Smart":                  "https://www.youtube.com/watch?v=5C4tZUKXEMo",
+    "LuxeHome — Furniture That Lasts":               "https://www.youtube.com/watch?v=ZoMpagkhJTY",
+    "ActiveGear PK — Sports Equipment Sale":         "https://www.youtube.com/watch?v=6o6JJIkamVY",
+    "TechZone — Gadgets at Best Price":              "https://www.youtube.com/watch?v=D6fPrRaTwBE",
   };
+  // Also migrate by URL: any ad whose videoUrl doesn't contain youtube.com gets
+  // re-assigned via title map, OR falls back to the first Basic-tier YouTube URL.
+  const fallbackYouTube = "https://www.youtube.com/watch?v=ss2M1J9IFiA";
   let migratedCount = 0;
   for (const ad of existingAds) {
-    const newVideoUrl = videoMigration[ad.videoUrl];
-    if (newVideoUrl) {
+    const byTitle = titleToYouTube[ad.title];
+    const needsMigration = !ad.videoUrl.includes("youtube.com");
+    const newVideoUrl = byTitle ?? (needsMigration ? fallbackYouTube : null);
+    if (newVideoUrl && ad.videoUrl !== newVideoUrl) {
       await storage.updateAd(ad.id, { videoUrl: newVideoUrl });
       migratedCount++;
     }
   }
-  if (migratedCount > 0) log(`Migrated ${migratedCount} ad video URLs to working sources`);
+  if (migratedCount > 0) log(`Migrated ${migratedCount} ads to Pakistani brand YouTube videos`);
 
   if (existingAds.length >= 15) return;
 
-  // Working video URLs (verified reachable from this environment)
-  const V = {
-    bbb:     "https://www.w3schools.com/html/mov_bbb.mp4",
-    movie:   "https://www.w3schools.com/html/movie.mp4",
-    sintel:  "https://media.w3.org/2010/05/sintel/trailer.mp4",
-    w3movie: "https://media.w3.org/2010/05/video/movie_300.mp4",
-    flower:  "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4",
-    plyr:    "https://cdn.plyr.io/static/demo/View_From_A_Blue_Moon_Trailer-576p.mp4",
-    sample:  "https://filesamples.com/samples/video/mp4/sample_640x360.mp4",
-  };
-
+  // Seed real Pakistani brand ads using YouTube video IDs
   const allSeedAds = [
-    // Basic tier — visible to all plans
+    // ── Basic tier (visible to all plans) ──
     {
-      title: "Falak Mobile — Unlimited 4G Load Offer",
-      brand: "Falak Mobile",
+      title: "Jazz — Pakistan Mein Sab Se Tez Network",
+      brand: "Jazz",
       category: "Telecom",
-      videoUrl: V.bbb,
+      videoUrl: "https://www.youtube.com/watch?v=ss2M1J9IFiA",
+      thumbnailUrl: "https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=400&q=80",
+      duration: 30,
+    },
+    {
+      title: "Ufone 4G — U Tou Babar Hai",
+      brand: "Ufone",
+      category: "Telecom",
+      videoUrl: "https://www.youtube.com/watch?v=D6fPrRaTwBE",
       thumbnailUrl: "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=400&q=80",
-      duration: 15,
+      duration: 30,
     },
     {
-      title: "Zaiqa Chips — Crunch Into Flavor",
-      brand: "Zaiqa Chips",
-      category: "Snacks",
-      videoUrl: V.movie,
-      thumbnailUrl: "https://images.unsplash.com/photo-1566478989037-eec170784d0b?w=400&q=80",
-      duration: 15,
+      title: "Telenor Pakistan — Zainab Ki Kahani",
+      brand: "Telenor Pakistan",
+      category: "Telecom",
+      videoUrl: "https://www.youtube.com/watch?v=_u_naO4mWLc",
+      thumbnailUrl: "https://images.unsplash.com/photo-1596077921836-4bab7fcf7e76?w=400&q=80",
+      duration: 30,
     },
     {
-      title: "Bazaar Online — Shop Everything, Fast",
-      brand: "Bazaar Online",
-      category: "E-commerce",
-      videoUrl: V.sintel,
-      thumbnailUrl: "https://images.unsplash.com/photo-1472851294608-062f824d29cc?w=400&q=80",
-      duration: 15,
+      title: "Surf Excel — KhushiyonKaSadqa Ramazan 2022",
+      brand: "Surf Excel",
+      category: "FMCG",
+      videoUrl: "https://www.youtube.com/watch?v=zTsBZMCq3a8",
+      thumbnailUrl: "https://images.unsplash.com/photo-1584545284372-f22510eb7c26?w=400&q=80",
+      duration: 60,
     },
     {
-      title: "Sohni Textiles — New Winter Collection",
-      brand: "Sohni Textiles",
-      category: "Fashion",
-      videoUrl: V.flower,
-      thumbnailUrl: "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400&q=80",
-      duration: 15,
+      title: "NESCAFÉ Pakistan — Imkan Hai",
+      brand: "NESCAFÉ Pakistan",
+      category: "Beverages",
+      videoUrl: "https://www.youtube.com/watch?v=VySzhAKpBew",
+      thumbnailUrl: "https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=400&q=80",
+      duration: 30,
+    },
+    // ── Standard tier (visible to Standard & Premium) ──
+    {
+      title: "Ufone — Sohni Mahiwal Weekly Offer",
+      brand: "Ufone",
+      category: "Telecom",
+      videoUrl: "https://www.youtube.com/watch?v=O3SjrE7AmEw",
+      thumbnailUrl: "https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=400&q=80",
+      duration: 60,
     },
     {
-      title: "Speedy Riders — Delivered in 30 Minutes",
-      brand: "Speedy Riders",
-      category: "Delivery",
-      videoUrl: V.w3movie,
-      thumbnailUrl: "https://images.unsplash.com/photo-1526367790999-0150786686a2?w=400&q=80",
-      duration: 15,
-    },
-    // Standard tier — visible to Standard & Premium
-    {
-      title: "Karim's Kitchen — Taste of Home",
-      brand: "Karim's Kitchen",
-      category: "Restaurant",
-      videoUrl: V.plyr,
-      thumbnailUrl: "https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=400&q=80",
-      duration: 15,
+      title: "Knorr Pakistan — Nayi Duniya Ke Zaiqay",
+      brand: "Knorr Pakistan",
+      category: "Food",
+      videoUrl: "https://www.youtube.com/watch?v=wy1tjUJX4f0",
+      thumbnailUrl: "https://images.unsplash.com/photo-1569050467447-ce54b3bbc37d?w=400&q=80",
+      duration: 30,
     },
     {
-      title: "PakDrive — Find Your Dream Car",
-      brand: "PakDrive",
-      category: "Automotive",
-      videoUrl: V.sample,
-      thumbnailUrl: "https://images.unsplash.com/photo-1494976388531-d1058494cdd8?w=400&q=80",
-      duration: 15,
+      title: "MILO Pakistan — Fuel For School",
+      brand: "MILO Pakistan",
+      category: "Beverages",
+      videoUrl: "https://www.youtube.com/watch?v=JSl206o6mDU",
+      thumbnailUrl: "https://images.unsplash.com/photo-1559181567-c3190becdac5?w=400&q=80",
+      duration: 30,
     },
     {
-      title: "HealthPlus — Your Wellness Partner",
-      brand: "HealthPlus",
-      category: "Health",
-      videoUrl: V.bbb,
-      thumbnailUrl: "https://images.unsplash.com/photo-1505576399279-565b52d4ac71?w=400&q=80",
-      duration: 15,
+      title: "HBL — Islamic Personal Finance",
+      brand: "HBL",
+      category: "Banking",
+      videoUrl: "https://www.youtube.com/watch?v=dCK8bctt9EY",
+      thumbnailUrl: "https://images.unsplash.com/photo-1541354329998-f4d9a9f9297f?w=400&q=80",
+      duration: 30,
     },
     {
-      title: "BrightStar Academy — Learn & Grow",
-      brand: "BrightStar Academy",
-      category: "Education",
-      videoUrl: V.sintel,
-      thumbnailUrl: "https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=400&q=80",
-      duration: 15,
+      title: "Zong 4G — Business Solutions",
+      brand: "Zong 4G",
+      category: "Telecom",
+      videoUrl: "https://www.youtube.com/watch?v=BvsOcru1DPE",
+      thumbnailUrl: "https://images.unsplash.com/photo-1478145046317-39f10e56b5e9?w=400&q=80",
+      duration: 30,
+    },
+    // ── Premium tier (visible to Premium only) ──
+    {
+      title: "Pepsi Pakistan — Khelenge Beat Pe (PSL 11)",
+      brand: "Pepsi Pakistan",
+      category: "Beverages",
+      videoUrl: "https://www.youtube.com/watch?v=DNd4nwMoUIM",
+      thumbnailUrl: "https://images.unsplash.com/photo-1553456558-aff63285bdd1?w=400&q=80",
+      duration: 180,
     },
     {
-      title: "GlowUp Cosmetics — Shine Every Day",
-      brand: "GlowUp Cosmetics",
-      category: "Beauty",
-      videoUrl: V.flower,
-      thumbnailUrl: "https://images.unsplash.com/photo-1596462502278-27bfdc403348?w=400&q=80",
-      duration: 15,
-    },
-    // Premium tier — visible to Premium only
-    {
-      title: "SkyTravel — Fly Anywhere for Less",
-      brand: "SkyTravel",
-      category: "Travel",
-      videoUrl: V.plyr,
-      thumbnailUrl: "https://images.unsplash.com/photo-1436491865332-7a61a109cc05?w=400&q=80",
-      duration: 20,
+      title: "Surf Excel — Daag Ache Hain (Puddlewar)",
+      brand: "Surf Excel",
+      category: "FMCG",
+      videoUrl: "https://www.youtube.com/watch?v=6o6JJIkamVY",
+      thumbnailUrl: "https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=400&q=80",
+      duration: 60,
     },
     {
-      title: "CryptoEarn PK — Invest Smart",
-      brand: "CryptoEarn PK",
-      category: "Finance",
-      videoUrl: V.movie,
-      thumbnailUrl: "https://images.unsplash.com/photo-1605792657660-596af9009e82?w=400&q=80",
-      duration: 20,
+      title: "Telenor Pakistan — Gaming Sim",
+      brand: "Telenor Pakistan",
+      category: "Telecom",
+      videoUrl: "https://www.youtube.com/watch?v=5C4tZUKXEMo",
+      thumbnailUrl: "https://images.unsplash.com/photo-1542751371-adc38448a05e?w=400&q=80",
+      duration: 30,
     },
     {
-      title: "LuxeHome — Furniture That Lasts",
-      brand: "LuxeHome",
-      category: "Home Decor",
-      videoUrl: V.w3movie,
-      thumbnailUrl: "https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=400&q=80",
-      duration: 20,
+      title: "Shan Foods — Masala Cola",
+      brand: "Shan Foods",
+      category: "Food",
+      videoUrl: "https://www.youtube.com/watch?v=rJSieo5RNlU",
+      thumbnailUrl: "https://images.unsplash.com/photo-1596040033229-a9821ebd058d?w=400&q=80",
+      duration: 30,
     },
     {
-      title: "ActiveGear PK — Sports Equipment Sale",
-      brand: "ActiveGear PK",
-      category: "Sports",
-      videoUrl: V.sample,
-      thumbnailUrl: "https://images.unsplash.com/photo-1517649763962-0c623066013b?w=400&q=80",
-      duration: 20,
-    },
-    {
-      title: "TechZone — Gadgets at Best Price",
-      brand: "TechZone",
-      category: "Technology",
-      videoUrl: V.bbb,
-      thumbnailUrl: "https://images.unsplash.com/photo-1519389950473-47ba0277781c?w=400&q=80",
-      duration: 20,
+      title: "Nestlé Fruita Vitals — Taste of Pakistan",
+      brand: "Nestlé Pakistan",
+      category: "Beverages",
+      videoUrl: "https://www.youtube.com/watch?v=ZoMpagkhJTY",
+      thumbnailUrl: "https://images.unsplash.com/photo-1560508180-03f285f67ded?w=400&q=80",
+      duration: 30,
     },
   ];
 

@@ -75,6 +75,15 @@ export default function Dashboard() {
   const [videoLoading, setVideoLoading] = useState(true);
   const [videoPaused, setVideoPaused] = useState(false);
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const ytContainerRef = useRef<HTMLDivElement | null>(null);
+  const ytPlayerRef = useRef<any>(null);
+  const ytIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Helper to extract YouTube video ID from a URL
+  function getYouTubeId(url: string): string | null {
+    const m = url.match(/(?:v=|youtu\.be\/|embed\/)([A-Za-z0-9_-]{11})/);
+    return m ? m[1] : null;
+  }
 
   useEffect(() => {
     apiRequest("/api/config").then(setConfig).catch(() => {});
@@ -82,6 +91,102 @@ export default function Dashboard() {
       .then((data) => setAds(data.ads))
       .catch(() => {});
   }, []);
+
+  // Initialize YouTube IFrame player whenever an ad starts
+  useEffect(() => {
+    if (!watching || !activeAd) return;
+
+    const videoId = getYouTubeId(activeAd.videoUrl);
+    if (!videoId) {
+      // URL is not a valid YouTube link — show error immediately
+      setVideoError(true);
+      setVideoLoading(false);
+      return;
+    }
+
+    setVideoLoading(true);
+    setVideoError(false);
+    setVideoPaused(false);
+
+    const initPlayer = () => {
+      if (!ytContainerRef.current) return;
+      try { ytPlayerRef.current?.destroy(); } catch {}
+
+      ytPlayerRef.current = new (window as any).YT.Player(ytContainerRef.current, {
+        videoId,
+        width: "100%",
+        height: "100%",
+        playerVars: {
+          autoplay: 1,
+          rel: 0,
+          modestbranding: 1,
+          playsinline: 1,
+          fs: 0,            // disable fullscreen button to keep our UI in control
+          iv_load_policy: 3, // no annotations
+        },
+        events: {
+          onReady: (e: any) => {
+                // Force the iframe to fill its container regardless of aspect ratio
+                const iframe = e.target.getIframe();
+                iframe.style.position = "absolute";
+                iframe.style.top = "0";
+                iframe.style.left = "0";
+                iframe.style.width = "100%";
+                iframe.style.height = "100%";
+                setVideoLoading(false);
+              },
+          onStateChange: (e: any) => {
+            const YT = (window as any).YT;
+            if (e.data === YT.PlayerState.ENDED) {
+              if (ytIntervalRef.current) clearInterval(ytIntervalRef.current);
+              setProgress(100);
+              handleVideoEnded();
+            } else if (e.data === YT.PlayerState.PLAYING) {
+              setVideoPaused(false);
+              setVideoLoading(false);
+              if (ytIntervalRef.current) clearInterval(ytIntervalRef.current);
+              ytIntervalRef.current = setInterval(() => {
+                const p = ytPlayerRef.current;
+                if (p?.getCurrentTime && p?.getDuration) {
+                  const dur = p.getDuration();
+                  if (dur > 0) setProgress((p.getCurrentTime() / dur) * 100);
+                }
+              }, 500);
+            } else if (e.data === YT.PlayerState.PAUSED) {
+              setVideoPaused(true);
+              if (ytIntervalRef.current) clearInterval(ytIntervalRef.current);
+            } else if (e.data === YT.PlayerState.BUFFERING) {
+              setVideoLoading(true);
+            }
+          },
+          onError: () => { setVideoError(true); setVideoLoading(false); },
+        },
+      });
+    };
+
+    if ((window as any).YT?.Player) {
+      initPlayer();
+    } else {
+      if (!document.getElementById("yt-iframe-api")) {
+        const tag = document.createElement("script");
+        tag.id = "yt-iframe-api";
+        tag.src = "https://www.youtube.com/iframe_api";
+        document.head.appendChild(tag);
+      }
+      (window as any).onYouTubeIframeAPIReady = initPlayer;
+    }
+
+    return () => {
+      if (ytIntervalRef.current) clearInterval(ytIntervalRef.current);
+      // Destroy the IFrame player on unmount / ad change to prevent memory leaks
+      try { ytPlayerRef.current?.destroy(); } catch {}
+      ytPlayerRef.current = null;
+      // Remove the global callback so a stale script load can't re-init a dead player
+      if ((window as any).onYouTubeIframeAPIReady === initPlayer) {
+        delete (window as any).onYouTubeIframeAPIReady;
+      }
+    };
+  }, [watching, activeAd?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!user || !config) return null;
 
@@ -150,10 +255,8 @@ export default function Dashboard() {
   }
 
   function closeAdEarly() {
-    if (videoRef.current) {
-      videoRef.current.pause();
-      videoRef.current.src = "";
-    }
+    if (ytIntervalRef.current) clearInterval(ytIntervalRef.current);
+    try { ytPlayerRef.current?.stopVideo(); } catch {}
     setWatching(false);
     setActiveAd(null);
     setProgress(0);
@@ -163,10 +266,8 @@ export default function Dashboard() {
   }
 
   function tapToPlay() {
-    if (videoRef.current) {
-      videoRef.current.play().catch(() => {});
-      setVideoPaused(false);
-    }
+    try { ytPlayerRef.current?.playVideo(); } catch {}
+    setVideoPaused(false);
   }
 
   async function handleWithdraw(e: React.FormEvent) {
@@ -459,7 +560,7 @@ export default function Dashboard() {
           </div>
 
           {/* Video area */}
-          <div className="flex-1 relative bg-black flex items-center justify-center overflow-hidden">
+          <div className="flex-1 relative bg-black">
             {videoError ? (
               /* Error state */
               <div className="text-center px-8 py-12">
@@ -495,42 +596,21 @@ export default function Dashboard() {
               </div>
             ) : (
               <>
-                {/* Video element */}
-                <video
-                  ref={videoRef}
-                  key={activeAd.videoUrl}
-                  src={activeAd.videoUrl}
-                  autoPlay
-                  muted
-                  playsInline
-                  className="w-full h-full object-contain"
-                  onLoadStart={() => { setVideoLoading(true); setVideoError(false); }}
-                  onCanPlay={() => {
-                    setVideoLoading(false);
-                    videoRef.current?.play().catch(() => setVideoPaused(true));
-                  }}
-                  onPlay={() => setVideoPaused(false)}
-                  onPause={() => setVideoPaused(true)}
-                  onTimeUpdate={(e) => {
-                    const v = e.currentTarget;
-                    if (v.duration) setProgress((v.currentTime / v.duration) * 100);
-                  }}
-                  onEnded={handleVideoEnded}
-                  onError={() => { setVideoError(true); setVideoLoading(false); }}
-                />
+                {/* YouTube player container — IFrame API replaces this div */}
+                <div ref={ytContainerRef} className="absolute inset-0" />
 
                 {/* Loading spinner */}
                 {videoLoading && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-black/60">
+                  <div className="absolute inset-0 flex items-center justify-center bg-black">
                     <div className="w-12 h-12 rounded-full border-2 border-white/20 border-t-white animate-spin" />
                   </div>
                 )}
 
-                {/* Tap-to-play overlay (shown when paused and not loading) */}
+                {/* Tap-to-play overlay when autoplay is blocked or video is paused */}
                 {videoPaused && !videoLoading && (
                   <button
                     onClick={tapToPlay}
-                    className="absolute inset-0 flex items-center justify-center bg-black/40"
+                    className="absolute inset-0 flex items-center justify-center bg-black/50"
                   >
                     <div className="w-20 h-20 rounded-full bg-white/20 border-2 border-white/60 flex items-center justify-center backdrop-blur-sm active:scale-95 transition">
                       <PlayCircle size={48} className="text-white ml-1" />
@@ -543,18 +623,9 @@ export default function Dashboard() {
 
           {/* Bottom controls */}
           {!videoError && (
-            <div className="px-5 pt-3 pb-5 bg-gradient-to-t from-black to-transparent">
-              {/* Progress bar */}
-              <div
-                className="w-full h-1 bg-white/20 rounded-full overflow-hidden mb-3 cursor-pointer"
-                onClick={(e) => {
-                  const rect = e.currentTarget.getBoundingClientRect();
-                  const pct = (e.clientX - rect.left) / rect.width;
-                  if (videoRef.current?.duration) {
-                    videoRef.current.currentTime = pct * videoRef.current.duration;
-                  }
-                }}
-              >
+            <div className="px-5 pt-2 pb-4" style={{ paddingBottom: "max(16px, env(safe-area-inset-bottom))" }}>
+              {/* Progress bar — read-only indicator (no seek) */}
+              <div className="w-full h-1 bg-white/20 rounded-full overflow-hidden mb-3">
                 <div
                   className="h-full bg-jb-yellow rounded-full transition-all duration-200"
                   style={{ width: `${progress}%` }}
