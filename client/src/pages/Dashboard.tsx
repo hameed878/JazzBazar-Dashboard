@@ -118,11 +118,13 @@ export default function Dashboard() {
         height: "100%",
         playerVars: {
           autoplay: 1,
+          controls: 0,       // hide native YouTube controls — we use our own UI
           rel: 0,
           modestbranding: 1,
           playsinline: 1,
-          fs: 0,            // disable fullscreen button to keep our UI in control
-          iv_load_policy: 3, // no annotations
+          fs: 0,
+          iv_load_policy: 3,
+          disablekb: 1,      // disable keyboard shortcuts (no seeking)
         },
         events: {
           onReady: (e: any) => {
