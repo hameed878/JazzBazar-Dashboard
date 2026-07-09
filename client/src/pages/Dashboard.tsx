@@ -128,14 +128,12 @@ export default function Dashboard() {
         },
         events: {
           onReady: (e: any) => {
-                // Make the iframe taller than its container and shift it up so the
-                // YouTube control bar (~60px) is pushed below the overflow-hidden edge.
                 const iframe = e.target.getIframe();
                 iframe.style.position = "absolute";
-                iframe.style.top = "-60px";          // shift up — hides title bar too
-                iframe.style.left = "0";
-                iframe.style.width = "100%";
-                iframe.style.height = "calc(100% + 120px)"; // extra 60px top + 60px bottom
+                iframe.style.top    = "0";
+                iframe.style.left   = "0";
+                iframe.style.width  = "100%";
+                iframe.style.height = "100%";
                 setVideoLoading(false);
               },
           onStateChange: (e: any) => {
@@ -602,14 +600,18 @@ export default function Dashboard() {
                 {/* YouTube player container — IFrame API replaces this div */}
                 <div ref={ytContainerRef} className="absolute inset-0" />
 
+                {/* Black mask — covers YouTube's top title bar */}
+                <div className="absolute top-0 left-0 right-0 h-12 bg-black z-10 pointer-events-none" />
+                {/* Black mask — covers YouTube's bottom control bar + end-screen overlays */}
+                <div className="absolute bottom-0 left-0 right-0 h-16 bg-black z-10 pointer-events-none" />
+
                 {/*
                   Transparent intercept layer — sits above the iframe at all times.
-                  This prevents ANY click from reaching YouTube's native controls
-                  (progress bar, pause button, logo, "More videos", etc.).
+                  Prevents ANY click from reaching YouTube's native controls.
                   Tapping it toggles play/pause through our own handler.
                 */}
                 <div
-                  className="absolute inset-0 z-10"
+                  className="absolute inset-0 z-20"
                   onClick={videoPaused ? tapToPlay : () => {
                     ytPlayerRef.current?.pauseVideo?.();
                     setVideoPaused(true);
